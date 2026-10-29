@@ -1,23 +1,62 @@
-# DDSM115 ROS 2
+<h1 align="center">DDSM115 ROS 2</h1>
 
-Set up, test and drive **Waveshare DDSM115 hub motors** over RS485, with or without ROS 2.
+<p align="center">
+  Set up, test and drive <b>Waveshare DDSM115</b> hub motors over RS485, with or without ROS 2.<br>
+  Assign motor IDs, spin-test the wheels, then drive a 2- or 4-wheel robot with <code>ros2_control</code>.
+</p>
+
+<p align="center">
+  <a href="https://github.com/b-dosymzhan/ddsm115_ros2/actions/workflows/ci.yml"><img src="https://github.com/b-dosymzhan/ddsm115_ros2/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/ROS%202-Humble-22314E?logo=ros" alt="ROS 2 Humble">
+  <img src="https://img.shields.io/badge/ros2__control-hardware%20interface-blue" alt="ros2_control">
+  <img src="https://img.shields.io/badge/tool-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey" alt="Linux, Windows, macOS">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0"></a>
+</p>
+
+<p align="center">
+  <img src="docs/images/robot.jpg" width="900" alt="Aluminium frame on four DDSM115 hub motors, the finished delivery robot, and the robot navigating a hallway">
+  <br>
+  <sub>Our delivery robot on four DDSM115 motors: the frame, the finished robot, and autonomous navigation with Nav2 in a hallway.</sub>
+</p>
+
+## Why this repository
+
+Waveshare documents the raw RS485 frames of the DDSM115, but there is no ROS 2 driver and no tool
+to set up a set of motors. Getting a robot to drive meant solving the same problems again: motor
+IDs, mirrored wheels, replies that arrive in pieces, stale bytes on the bus. This repository
+packages everything that made our 4-wheel robot work:
 
 | | |
 |---|---|
-| [`tools/ddsm.py`](tools/ddsm.py) | One-file command line tool for Linux, macOS and Windows. Assign motor IDs, find the motors on the bus, spin them with live feedback, send raw frames. Needs only `pyserial`. |
-| [`ddsm_hardware`](ddsm_hardware) | ros2_control hardware interface (ROS 2 Humble). Any number of motors on one bus, velocity commands, velocity and position states. |
-| [`ddsm_example`](ddsm_example) | A 2- or 4-wheel robot (differential drive or skid-steer): one launch command, then drive it with the keyboard. |
-| [`docs/`](docs) | The [protocol](docs/protocol.md) with checked example frames, [wiring](docs/wiring.md), [calibration](docs/ros2_control.md) and [problems we hit](docs/troubleshooting.md). |
+| 🔧 [`tools/ddsm.py`](tools/ddsm.py) | One-file command line tool for Linux, macOS and Windows. **Assign motor IDs**, find the motors on the bus, spin them with live feedback, send raw frames. Needs only `pyserial`. |
+| 🤖 [`ddsm_hardware`](ddsm_hardware) | **ros2_control hardware interface** (ROS 2 Humble). Any number of motors on one bus, velocity commands, velocity and position states, zero speed on shutdown. |
+| 🚗 [`ddsm_example`](ddsm_example) | A 2- or 4-wheel robot (differential drive or skid-steer). One launch command, then drive it with the keyboard. |
+| 📖 [`docs/`](docs) | The [protocol](docs/protocol.md) with checked example frames, [wiring and mounting](docs/wiring.md), [calibration](docs/ros2_control.md) and the [problems we hit](docs/troubleshooting.md). |
 
-The driver comes from a 4-wheel delivery robot that maps and navigates with Nav2.
+## Hardware
 
-## What you need
+| [DDSM115 hub motor](https://www.waveshare.com/wiki/DDSM115) | [DDSM Driver HAT (A)](https://www.waveshare.com/wiki/DDSM_Driver_HAT_(A)) (optional, power only) | USB-RS485 adapter |
+|:---:|:---:|:---:|
+| <img src="https://www.waveshare.com/w/upload/5/5d/DDSM115.jpg" height="150" alt="DDSM115 hub motor"> | <img src="https://www.waveshare.com/w/upload/2/2a/DDSM-Driver-HAT-A-details-7.jpg" height="150" alt="DDSM Driver HAT (A) with four motors"> | any adapter with automatic direction control, for example CH340 based |
 
-- DDSM115 motors and a 12–24 V supply. Different DDSM models cannot share one bus.
-- A USB-RS485 adapter with automatic direction control (a CH340-based one works).
+<sub>Product images: © Waveshare, from the linked wiki pages.</sub>
+
+- DDSM115 motors and a 12–24 V supply. We used a 4S Li-Po battery (14.8 V, 9000 mAh).
+  Different DDSM models cannot share one bus.
+- A USB-RS485 adapter.
 - Python 3 with `pyserial` for the tool, ROS 2 Humble for the driver.
 
-Wiring, power and the Waveshare DDSM Driver HAT (A) are covered in [docs/wiring.md](docs/wiring.md).
+**How we connected it.** The computer talks to the motors **directly over the RS485 bus**
+through the USB-RS485 adapter. We used the Waveshare DDSM Driver HAT (A) **only for power**,
+because sending commands through its ESP32 did not work for us. Through the HAT's USB port the
+ESP32 expects Waveshare's JSON commands, not the raw frames used here.
+
+<p align="center">
+  <img src="docs/images/wiring.jpg" width="800" alt="Wiring: laptop, USB hub, RS485 adapter, DDSM Driver HAT (A), four DDSM115 motors, battery, emergency stop">
+</p>
+
+More in [docs/wiring.md](docs/wiring.md): power, emergency stop, serial ports and how we mounted
+the motors.
 
 ## 1. Give every motor its own ID
 
@@ -32,31 +71,39 @@ python3 tools/ddsm.py --port /dev/ttyUSB0 set-id 1   # give it ID 1
 - The motor takes a new ID only after receiving the set-ID frame 5 times. The tool sends it 5 times.
 - An ID can be set **once per power-up**. To change it again, power-cycle the motor.
 - The ID is kept when the power is off. Write it on the motor.
+- With several motors connected, all of them would take the same ID.
 
 Then connect all motors and check that every ID answers:
 
 ```bash
 python3 tools/ddsm.py --port /dev/ttyUSB0 scan --range 1-10
-# ID   1 | mode 2 |    0 rpm | 24 C | OK
-# ...
 ```
 
-On Windows use `python tools\ddsm.py --port COM5 ...`. On Linux, `ls -l /dev/serial/by-id/` shows the adapter.
+On Windows use `python tools\ddsm.py --port COM5 ...`. On Linux, `ls -l /dev/serial/by-id/` shows
+the adapter.
 
 ## 2. Spin test
 
 Lift the wheels off the ground, then:
 
 ```bash
-python3 tools/ddsm.py --port /dev/ttyUSB0 spin --ids 1 2 3 4 --rpm 60
+python3 tools/ddsm.py --port /dev/ttyUSB0 spin --ids 1 2 3 4 --rpm 60 --directions 1 1 -1 -1
 ```
 
-`w` forward, `s` reverse, `q` stop, `Esc` exit. Every motor shows its speed, angle, current,
-winding temperature and fault flags. The motors are always stopped on exit.
+```
+target 60 rpm | w forward, s reverse, q or space stop, Esc exit
+
+motor   1 | cmd   60 rpm | speed   58 rpm | angle   73.8 deg | current  0.10 A | temp  27 C | OK
+motor   2 | cmd   60 rpm | speed   61 rpm | angle  264.6 deg | current  0.09 A | temp  27 C | OK
+motor   3 | cmd  -60 rpm | speed  -59 rpm | angle   35.2 deg | current -0.10 A | temp  26 C | OK
+motor   4 | cmd  -60 rpm | speed  -60 rpm | angle  317.8 deg | current -0.10 A | temp  28 C | OK
+```
+
+`w` forward, `s` reverse, `q` stop, `Esc` exit. Fault flags (stall, overcurrent, …) show up in the
+last column. The motors are always stopped on exit.
 
 Motors on the left and right of a robot are mirrored, so one side turns backward. Find the
-`--directions` that drive every wheel forward, for example `--directions 1 1 -1 -1`. These are the
-`motor_directions` for ROS.
+`--directions` that drive every wheel forward. These are the `motor_directions` for ROS.
 
 ## 3. Drive it with ROS 2
 
@@ -70,6 +117,18 @@ colcon build && source install/setup.bash
 ros2 launch ddsm_example bringup.launch.py port:=/dev/ttyUSB0 wheels:=4 \
     motor_ids:=1,2,3,4 motor_directions:=1,1,-1,-1
 ros2 run teleop_twist_keyboard teleop_twist_keyboard       # in a second terminal
+```
+
+```mermaid
+flowchart LR
+    teleop["teleop / Nav2"] -->|"/cmd_vel"| diff["diff_drive_controller"]
+    diff -->|"wheel velocity, rad/s"| hw["ddsm_hardware"]
+    hw -->|"speed frames"| bus(("USB-RS485 bus"))
+    bus --> m["DDSM115 x 4"]
+    m -->|"speed, current, faults"| bus
+    bus --> hw
+    hw -->|"measured velocity"| diff
+    diff -->|"/odom, TF"| out["Nav2 / your code"]
 ```
 
 | Topic | |
@@ -123,6 +182,21 @@ robot.
 `ddsm.py frame speed 1 100` prints any frame with its CRC (`01 64 00 64 00 00 00 00 00 4F`), for use
 from an Arduino, ESP32 or PLC. All the details are in [docs/protocol.md](docs/protocol.md).
 
+## DDSM115 at a glance
+
+| | |
+|---|---|
+| Supply | 12–24 V |
+| Speed | rated 115 rpm, no load 200 ± 10 rpm, about 11 rpm per volt |
+| Torque | rated 0.96 N·m, stall 2.0 N·m |
+| Current | rated 1.25 A, stall ≤ 2.7 A |
+| Encoder | 4096 counts per revolution |
+| Tyre | 100.7 mm diameter, 43 mm wide |
+| Weight | 765 g |
+| Bus | RS485, 115200 baud, IDs 1–253 |
+
+<sub>Datasheet values from Waveshare.</sub>
+
 ## Development
 
 ```bash
@@ -130,6 +204,10 @@ python3 -m pytest tools                    # the tool, against a simulated motor
 colcon test && colcon test-result --all    # protocol gtests, URDF test, ament linters
 ```
 
+CI builds and tests the ROS 2 packages on Humble, and the tool on Linux, Windows and macOS.
+
 ## License
 
 [Apache-2.0](LICENSE)
+
+If this saved you time, a ⭐ helps other DDSM115 users find it.

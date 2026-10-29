@@ -11,6 +11,13 @@ These are the problems we ran into while building a 4-wheel robot on DDSM115 mot
 4. **No common ground.** Connect the adapter GND to the motor supply GND.
 5. **Unknown ID.** Connect one motor and run `ddsm.py get-id`. Then `ddsm.py scan` tries every ID.
 
+## Commands sent through the DDSM Driver HAT's USB port do nothing
+
+With its serial port control switch on ESP32, the HAT's ESP32-USB port expects Waveshare's JSON
+commands, not raw RS485 frames. Commanding the motors through the HAT did not work for us, so we
+use the HAT only for power and wire a USB-RS485 adapter to the motors' RS485 lines (see
+[wiring.md](wiring.md#waveshare-ddsm-driver-hat-a)).
+
 ## Replies have bad CRCs, or two motors look like one
 
 Two motors have the **same ID** and answer at the same time. Connect them one at a time and give
