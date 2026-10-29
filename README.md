@@ -13,12 +13,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0"></a>
 </p>
 
-<p align="center">
-  <img src="docs/images/robot.jpg" width="900" alt="Aluminium frame on four DDSM115 hub motors, the finished delivery robot, and the robot navigating a hallway">
-  <br>
-  <sub>Our delivery robot on four DDSM115 motors: the frame, the finished robot, and autonomous navigation with Nav2 in a hallway.</sub>
-</p>
-
 ## Why this repository
 
 Waveshare documents the raw RS485 frames of the DDSM115, but there is no ROS 2 driver and no tool
