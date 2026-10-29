@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<!--
+  Minimal differential drive / skid-steer robot on DDSM115 hub motors.
+  Replace the box and the wheel positions with your robot; keep the ros2_control block.
+
+  wheels 4 joints front_left, rear_left, front_right, rear_right (in this order)
+  wheels 2 joints left, right
+  The joint order maps onto motor_ids, motor_directions and motor_trims.
+-->
+<robot name="ddsm_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="wheels" default="4"/>
+  <xacro:arg name="port" default="/dev/ttyUSB0"/>
+  <xacro:arg name="motor_ids" default="1,2,3,4"/>
+  <xacro:arg name="motor_directions" default="1,1,-1,-1"/>
+  <xacro:arg name="motor_trims" default="1.0,1.0,1.0,1.0"/>
+
+  <xacro:property name="four_wheels" value="${'$(arg wheels)' == '4'}"/>
+  <!-- DDSM115 tyre 100.7 mm diameter and 43 mm wide -->
+  <xacro:property name="wheel_radius" value="0.05"/>
+  <xacro:property name="wheel_width" value="0.043"/>
+  <xacro:property name="track" value="0.30"/>
+  <xacro:property name="wheelbase" value="0.25"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.05"/>
+      <geometry><box size="0.40 0.25 0.10"/></geometry>
+    </visual>
+  </link>
+
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}_wheel">
+      <visual>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </visual>
+    </link>
+    <!-- Every wheel turns about +y, so a positive joint velocity drives forward -->
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${name}_wheel"/>
+      <origin xyz="${x} ${y} 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="wheel_interfaces" params="name">
+    <joint name="${name}_wheel_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="velocity"/>
+      <state_interface name="position"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:if value="${four_wheels}">
+    <xacro:wheel name="front_left" x="${wheelbase/2}" y="${track/2}"/>
+    <xacro:wheel name="rear_left" x="${-wheelbase/2}" y="${track/2}"/>
+    <xacro:wheel name="front_right" x="${wheelbase/2}" y="${-track/2}"/>
+    <xacro:wheel name="rear_right" x="${-wheelbase/2}" y="${-track/2}"/>
+  </xacro:if>
+  <xacro:unless value="${four_wheels}">
+    <xacro:wheel name="left" x="0" y="${track/2}"/>
+    <xacro:wheel name="right" x="0" y="${-track/2}"/>
+  </xacro:unless>
+
+  <ros2_control name="DDSM115" type="system">
+    <hardware>
+      <plugin>ddsm_hardware/DDSMHardwareInterface</plugin>
+      <param name="port">$(arg port)</param>
+      <param name="rpm_limit">330</param>
+      <param name="accel_time">0</param>
+      <param name="brake">0</param>
+      <param name="motor_ids">$(arg motor_ids)</param>
+      <param name="motor_directions">$(arg motor_directions)</param>
+      <param name="motor_trims">$(arg motor_trims)</param>
+    </hardware>
+    <xacro:if value="${four_wheels}">
+      <xacro:wheel_interfaces name="front_left"/>
+      <xacro:wheel_interfaces name="rear_left"/>
+      <xacro:wheel_interfaces name="front_right"/>
+      <xacro:wheel_interfaces name="rear_right"/>
+    </xacro:if>
+    <xacro:unless value="${four_wheels}">
+      <xacro:wheel_interfaces name="left"/>
+      <xacro:wheel_interfaces name="right"/>
+    </xacro:unless>
+  </ros2_control>
+
+</robot>

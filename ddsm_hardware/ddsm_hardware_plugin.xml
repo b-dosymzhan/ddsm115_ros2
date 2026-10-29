@@ -1,0 +1,9 @@
+<library path="ddsm_hardware">
+  <class name="ddsm_hardware/DDSMHardwareInterface"
+         type="ddsm_hardware::DDSMHardwareInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ros2_control hardware interface for DDSM115 hub motors on an RS485 bus
+    </description>
+  </class>
+</library>
